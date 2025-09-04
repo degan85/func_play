@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FuncPlay - 함수형 프로그래밍 학습 플랫폼",
-  description: "SICP를 기반으로 한 인터랙티브 함수형 프로그래밍 학습 플랫폼",
+  title: "FuncPlay - AI 기반 함수형 프로그래밍 학습 플랫폼",
+  description: "AI가 생성하는 맞춤형 함수형 프로그래밍 문제로 JavaScript와 Lisp를 마스터하세요",
 };
 
 export default function RootLayout({

@@ -1,5 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// FuncPlay 2.0 - AI-Powered Functional Programming Learning Platform
+// Prisma Schema
 
 generator client {
   provider = "prisma-client-js"
@@ -8,27 +8,250 @@ generator client {
 datasource db {
   provider = "postgresql"
   url = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
-// NextAuth.js tables
+// User model with comprehensive learning tracking
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Learning Progress
+  level         Int       @default(1)
+  totalXP       Int       @default(0)
+  currentStreak Int       @default(0)
+  maxStreak     Int       @default(0)
+  lastActiveAt  DateTime  @default(now())
+  
+  // Language Preference
+  preferredLang Language  @default(JAVASCRIPT)
+  
+  // Relations
+  profile       Profile?
+  problems      Problem[]
+  submissions   Submission[]
+  achievements  UserAchievement[]
+  accounts      Account[]
+  sessions      Session[]
+  
+  @@map("users")
+}
+
+// Extended user profile
+model Profile {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  displayName String?
+  bio         String?
+  avatar      String?
+  location    String?
+  website     String?
+  
+  // Learning Preferences
+  learningGoals String[]
+  skillLevel    SkillLevel @default(BEGINNER)
+  concepts      String[]   // Interested concepts
+  
+  // Privacy Settings
+  publicProfile Boolean   @default(true)
+  showProgress  Boolean   @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("profiles")
+}
+
+// AI-Generated Problems
+model Problem {
+  id          String    @id @default(cuid())
+  userId      String    // Creator (could be system or user)
+  
+  title       String
+  description String    @db.Text
+  explanation String?   @db.Text
+  
+  // Difficulty & Classification
+  difficulty  Int       // 1-10 scale
+  concepts    String[]  // ["recursion", "higher-order", "closure"]
+  language    Language
+  skillLevel  SkillLevel
+  
+  // Problem Content
+  initialCode String    @db.Text
+  solution    String?   @db.Text
+  testCases   Json      // Flexible test case structure
+  hints       String[]
+  
+  // AI Generation Metadata
+  aiGenerated Boolean   @default(true)
+  prompt      String?   @db.Text // Original AI prompt
+  
+  // Usage Statistics
+  attempts    Int       @default(0)
+  completions Int       @default(0)
+  avgRating   Float?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  creator     User        @relation(fields: [userId], references: [id])
+  submissions Submission[]
+  ratings     ProblemRating[]
+  
+  @@map("problems")
+}
+
+// User code submissions
+model Submission {
+  id            String    @id @default(cuid())
+  userId        String
+  problemId     String
+  
+  code          String    @db.Text
+  language      Language
+  passed        Boolean
+  testResults   Json?     // Detailed test results
+  executionTime Int?      // milliseconds
+  
+  // Scoring & Feedback
+  xpEarned      Int       @default(0)
+  codeQuality   Float?    // AI-assessed code quality score
+  aiFeedback    String?   @db.Text
+  
+  // Performance Metrics
+  codeLength    Int?
+  complexity    Int?      // Cyclomatic complexity
+  efficiency    Float?    // Time complexity rating
+  
+  submittedAt   DateTime  @default(now())
+  
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem       Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  
+  @@map("submissions")
+}
+
+// Problem rating system
+model ProblemRating {
+  id        String @id @default(cuid())
+  userId    String
+  problemId String
+  rating    Int    // 1-5 stars
+  comment   String?
+  
+  createdAt DateTime @default(now())
+  
+  problem   Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, problemId])
+  @@map("problem_ratings")
+}
+
+// Achievement system
+model Achievement {
+  id          String    @id @default(cuid())
+  key         String    @unique // unique identifier for code
+  name        String
+  description String
+  icon        String
+  rarity      Rarity    @default(COMMON)
+  category    String    // "learning", "streak", "skill", etc.
+  
+  // Unlock Conditions (flexible JSON structure)
+  conditions  Json
+  xpReward    Int       @default(0)
+  
+  // Display order and status
+  displayOrder Int?
+  isActive     Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  users       UserAchievement[]
+  
+  @@map("achievements")
+}
+
+// User-Achievement junction
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  achievementId String
+  
+  unlockedAt    DateTime    @default(now())
+  
+  // Relations
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+// Learning Path System
+model LearningPath {
+  id          String @id @default(cuid())
+  name        String
+  description String
+  language    Language
+  skillLevel  SkillLevel
+  concepts    String[]
+  estimatedHours Int?
+  
+  isOfficial  Boolean @default(false)
+  creatorId   String?
+  
+  milestones  Milestone[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("learning_paths")
+}
+
+model Milestone {
+  id            String @id @default(cuid())
+  pathId        String
+  title         String
+  description   String?
+  concepts      String[]
+  requiredXP    Int
+  order         Int
+  
+  learningPath  LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  
+  @@map("milestones")
+}
+
+// NextAuth.js Required Models
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?  @db.Text
-  access_token      String?  @db.Text
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?  @db.Text
+  id_token          String? @db.Text
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@map("accounts")
 }
 
 model Session {
@@ -36,27 +259,10 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-  
-  // FuncPlay specific fields
-  currentLevel    Int       @default(1)
-  xpPoints        Int       @default(0)
-  streakDays      Int       @default(0)
-  lastActiveDate  DateTime?
-  
-  accounts Account[]
-  sessions Session[]
-  progress UserProgress[]
-  achievements UserAchievement[]
+  @@map("sessions")
 }
 
 model VerificationToken {
@@ -65,45 +271,25 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+  @@map("verification_tokens")
 }
 
-// FuncPlay specific tables
-model UserProgress {
-  id           String   @id @default(cuid())
-  userId       String
-  problemId    String
-  completed    Boolean  @default(false)
-  bestCode     String?  @db.Text
-  attempts     Int      @default(0)
-  completedAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, problemId])
+// Enums
+enum Language {
+  JAVASCRIPT
+  LISP
 }
 
-model Achievement {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String
-  icon        String
-  xpReward    Int      @default(0)
-  criteria    String   @db.Text // JSON criteria for earning the achievement
-  createdAt   DateTime @default(now())
-  
-  userAchievements UserAchievement[]
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
 }
 
-model UserAchievement {
-  id            String   @id @default(cuid())
-  userId        String
-  achievementId String
-  earnedAt      DateTime @default(now())
-  
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, achievementId])
+enum Rarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
 }
